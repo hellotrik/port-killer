@@ -153,7 +153,7 @@ actor PortScanner {
 
         let addr = parts.dropLast().joined(separator: ":")
 
-        return PortInfo(
+        return PortInfo.active(
             port: port,
             pid: pid,
             processName: processName,

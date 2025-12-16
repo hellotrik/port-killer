@@ -4,9 +4,14 @@ import SwiftUI
 struct PortKillerApp: App {
     @State private var state = AppState()
 
+    init() {
+        // Disable automatic window tabbing (prevents Chrome-like tabs)
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
+
     var body: some Scene {
-        // Main Window
-        WindowGroup(id: "main") {
+        // Main Window - Single instance only
+        Window("PortKiller", id: "main") {
             MainWindowView()
                 .environment(state)
         }

@@ -10,11 +10,40 @@ struct PortInfo: Identifiable, Hashable, Sendable {
     let user: String
     let command: String
     let fd: String
+    let isActive: Bool
 
     var displayPort: String { ":\(port)" }
 
     var processType: ProcessType {
         ProcessType.detect(from: processName)
+    }
+
+    /// Create an inactive placeholder for a favorited/watched port
+    static func inactive(port: Int) -> PortInfo {
+        PortInfo(
+            port: port,
+            pid: 0,
+            processName: "Not running",
+            address: "-",
+            user: "-",
+            command: "",
+            fd: "",
+            isActive: false
+        )
+    }
+
+    /// Create an active port from scan results
+    static func active(port: Int, pid: Int, processName: String, address: String, user: String, command: String, fd: String) -> PortInfo {
+        PortInfo(
+            port: port,
+            pid: pid,
+            processName: processName,
+            address: address,
+            user: user,
+            command: command,
+            fd: fd,
+            isActive: true
+        )
     }
 }
 

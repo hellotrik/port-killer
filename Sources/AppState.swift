@@ -47,10 +47,22 @@ final class AppState: NSObject {
         case .allPorts:
             break
         case .favorites:
+            // Show active favorites + inactive favorites
+            let activeFavoritePorts = Set(result.filter { favorites.contains($0.port) }.map { $0.port })
             result = result.filter { favorites.contains($0.port) }
+            // Add inactive favorites (not currently running)
+            for favPort in favorites where !activeFavoritePorts.contains(favPort) {
+                result.append(PortInfo.inactive(port: favPort))
+            }
         case .watched:
             let watchedPortNumbers = Set(watchedPorts.map { $0.port })
+            // Show active watched + inactive watched
+            let activeWatchedPorts = Set(result.filter { watchedPortNumbers.contains($0.port) }.map { $0.port })
             result = result.filter { watchedPortNumbers.contains($0.port) }
+            // Add inactive watched (not currently running)
+            for watchedPort in watchedPortNumbers where !activeWatchedPorts.contains(watchedPort) {
+                result.append(PortInfo.inactive(port: watchedPort))
+            }
         case .processType(let type):
             result = result.filter { $0.processType == type }
         case .settings:
@@ -90,7 +102,9 @@ final class AppState: NSObject {
     private var previousPortStates: [Int: Bool] = [:]
     @ObservationIgnored
     private lazy var notificationCenter: UNUserNotificationCenter? = {
-        guard Bundle.main.bundleIdentifier != nil else { return nil }
+        // UNUserNotificationCenter only works in .app bundle
+        guard Bundle.main.bundleIdentifier != nil,
+              Bundle.main.bundlePath.hasSuffix(".app") else { return nil }
         return UNUserNotificationCenter.current()
     }()
 
@@ -216,10 +230,13 @@ final class AppState: NSObject {
             if window.isVisible {
                 window.orderOut(nil)
             } else {
-                window.makeKeyAndOrderFront(nil)
+                NSApp.setActivationPolicy(.regular)
                 NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
+                window.orderFrontRegardless()
             }
         } else {
+            NSApp.setActivationPolicy(.regular)
             NSApp.activate(ignoringOtherApps: true)
         }
     }

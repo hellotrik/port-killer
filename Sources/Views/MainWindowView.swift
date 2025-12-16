@@ -57,6 +57,9 @@ struct MainWindowView: View {
     private var contentView: some View {
         if appState.selectedSidebarItem == .settings {
             SettingsView(state: appState, updateManager: appState.updateManager)
+                .id("settings")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationSplitViewColumnWidth(min: 400, ideal: 600, max: .infinity)
         } else {
             VStack(spacing: 0) {
                 PortTableView()

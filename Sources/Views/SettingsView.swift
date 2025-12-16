@@ -1,5 +1,6 @@
 import SwiftUI
 import ApplicationServices
+import UserNotifications
 import Sparkle
 import LaunchAtLogin
 import KeyboardShortcuts
@@ -7,374 +8,459 @@ import KeyboardShortcuts
 struct SettingsView: View {
     @Bindable var state: AppState
     @ObservedObject var updateManager: UpdateManager
-    @State private var newFavoritePort = ""
-    @State private var newWatchPort = ""
-    @State private var watchOnStart = true
-    @State private var watchOnStop = true
     @State private var hasAccessibility = AXIsProcessTrusted()
+    @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
+    @State private var permissionCheckTimer: Timer?
 
     var body: some View {
-        TabView {
-            // General Tab
-            generalTab
-                .tabItem { Label("General", systemImage: "gear") }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                // MARK: - General
+                SettingsGroup("General", icon: "gearshape.fill") {
+                    SettingsRowContainer {
+                        LaunchAtLogin.Toggle {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Launch at Login")
+                                    .fontWeight(.medium)
+                                Text("Start PortKiller when you log in")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .toggleStyle(.switch)
+                    }
+                }
 
-            // Shortcuts Tab
-            shortcutsTab
-                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+                // MARK: - Permissions
+                SettingsGroup("Permissions", icon: "lock.shield.fill") {
+                    VStack(spacing: 0) {
+                        // Accessibility Permission
+                        SettingsRowContainer {
+                            HStack(spacing: 12) {
+                                Image(systemName: hasAccessibility ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(hasAccessibility ? .green : .orange)
 
-            // Favorites Tab
-            favoritesTab
-                .tabItem { Label("Favorites", systemImage: "star") }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Accessibility")
+                                        .fontWeight(.medium)
+                                    Text(hasAccessibility ? "Permission granted" : "Required for global shortcuts")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
 
-            // Watch Tab
-            watchTab
-                .tabItem { Label("Watch", systemImage: "eye") }
+                                Spacer()
 
-            // Updates Tab
-            updatesTab
-                .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
+                                if hasAccessibility {
+                                    Text("Granted")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(.green.opacity(0.1))
+                                        .clipShape(Capsule())
+                                } else {
+                                    Button("Grant Access") {
+                                        promptAccessibility()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                                }
+                            }
+                        }
 
-            // About Tab
-            aboutTab
-                .tabItem { Label("About", systemImage: "info.circle") }
+                        SettingsDivider()
+
+                        // Notification Permission
+                        SettingsRowContainer {
+                            HStack(spacing: 12) {
+                                Image(systemName: notificationStatusIcon)
+                                    .font(.title2)
+                                    .foregroundStyle(notificationStatusColor)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Notifications")
+                                        .fontWeight(.medium)
+                                    Text(notificationStatusText)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                if notificationStatus == .authorized {
+                                    Text("Enabled")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(.green.opacity(0.1))
+                                        .clipShape(Capsule())
+                                } else if notificationStatus == .notDetermined {
+                                    Button("Enable") {
+                                        requestNotificationPermission()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                                } else {
+                                    Button("Open Settings") {
+                                        openNotificationSettings()
+                                    }
+                                    .controlSize(.small)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // MARK: - Keyboard Shortcuts
+                SettingsGroup("Keyboard Shortcuts", icon: "keyboard.fill") {
+                    SettingsRowContainer {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Toggle Main Window")
+                                    .fontWeight(.medium)
+                                Text("Show or hide the app window")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            KeyboardShortcuts.Recorder(for: .toggleMainWindow)
+                                .frame(width: 150)
+                        }
+                    }
+                }
+
+                // MARK: - Updates
+                SettingsGroup("Software Update", icon: "arrow.triangle.2.circlepath") {
+                    VStack(spacing: 0) {
+                        SettingsRowContainer {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("PortKiller \(AppInfo.versionString)")
+                                        .fontWeight(.medium)
+                                    if let lastCheck = updateManager.lastUpdateCheckDate {
+                                        Text("Last checked \(lastCheck.formatted(.relative(presentation: .named)))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text("Never checked for updates")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                Spacer()
+
+                                Button("Check Now") {
+                                    updateManager.checkForUpdates()
+                                }
+                                .disabled(!updateManager.canCheckForUpdates)
+                            }
+                        }
+
+                        SettingsDivider()
+
+                        SettingsToggleRow(
+                            title: "Check automatically",
+                            subtitle: "Look for updates in the background",
+                            isOn: Binding(
+                                get: { updateManager.automaticallyChecksForUpdates },
+                                set: { updateManager.automaticallyChecksForUpdates = $0 }
+                            )
+                        )
+
+                        SettingsDivider()
+
+                        SettingsToggleRow(
+                            title: "Download automatically",
+                            subtitle: "Download updates when available",
+                            isOn: Binding(
+                                get: { updateManager.automaticallyDownloadsUpdates },
+                                set: { updateManager.automaticallyDownloadsUpdates = $0 }
+                            )
+                        )
+                    }
+                }
+
+                // MARK: - About
+                SettingsGroup("About", icon: "info.circle.fill") {
+                    VStack(spacing: 0) {
+                        SettingsRowContainer {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Developer")
+                                        .fontWeight(.medium)
+                                    Text("productdevbook")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+                        }
+
+                        SettingsDivider()
+
+                        SettingsLinkRow(title: "GitHub", subtitle: "Star the project", icon: "star.fill", url: AppInfo.githubRepo)
+                        SettingsDivider()
+                        SettingsLinkRow(title: "Sponsor", subtitle: "Support development", icon: "heart.fill", url: AppInfo.githubSponsors)
+                        SettingsDivider()
+                        SettingsLinkRow(title: "Report Issue", subtitle: "Found a bug?", icon: "ladybug.fill", url: AppInfo.githubIssues)
+                        SettingsDivider()
+                        SettingsLinkRow(title: "Twitter/X", subtitle: "@pdevbook", icon: "at", url: AppInfo.twitterURL)
+                    }
+                }
+            }
+            .padding(28)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - General Tab
-
-    private var generalTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            LaunchAtLogin.Toggle("Launch at Login")
-                .toggleStyle(.switch)
-
-            Text("Automatically start PortKiller when you log in.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Divider()
-
-            Text("Permissions")
-                .font(.headline)
-
-            HStack {
-                Image(systemName: hasAccessibility ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundStyle(hasAccessibility ? .green : .red)
-                Text("Accessibility")
-                Spacer()
-                Button(hasAccessibility ? "Granted" : "Grant") {
-                    if !hasAccessibility {
-                        promptAccessibility()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                            hasAccessibility = AXIsProcessTrusted()
-                        }
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(hasAccessibility ? .green : .blue)
-                .controlSize(.small)
-                .disabled(hasAccessibility)
-            }
-            .onAppear { hasAccessibility = AXIsProcessTrusted() }
-
-            Text(hasAccessibility ? "Global hotkey is working." : "Required for global keyboard shortcuts.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Divider()
-
-            HStack {
-                Button {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.notifications")!)
-                } label: {
-                    Label("Open Notification Settings", systemImage: "bell")
-                }
-            }
-            Text("Enable notifications for port watch alerts.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Spacer()
+        .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear {
+            checkPermissions()
+            startPermissionTimer()
         }
-        .padding()
-    }
-
-    // MARK: - Shortcuts Tab
-
-    private var shortcutsTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Keyboard Shortcuts")
-                .font(.headline)
-
-            Form {
-                KeyboardShortcuts.Recorder("Toggle Main Window:", name: .toggleMainWindow)
-            }
-            .formStyle(.grouped)
-
-            Text("Click on a shortcut field and press your desired key combination.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Spacer()
+        .onDisappear {
+            stopPermissionTimer()
         }
-        .padding()
     }
 
-    // MARK: - Favorites Tab
+    // MARK: - Permission Helpers
 
-    private var favoritesTab: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                TextField("Port", text: $newFavoritePort)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 80)
-                Button("Add") {
-                    if let p = Int(newFavoritePort), p > 0, p <= 65535 {
-                        state.favorites.insert(p)
-                        newFavoritePort = ""
-                    }
-                }
-                .disabled(!isValidPort(newFavoritePort))
-            }
+    private var notificationStatusIcon: String {
+        switch notificationStatus {
+        case .authorized: return "checkmark.circle.fill"
+        case .denied: return "xmark.circle.fill"
+        case .notDetermined: return "questionmark.circle.fill"
+        case .provisional, .ephemeral: return "checkmark.circle.fill"
+        @unknown default: return "questionmark.circle.fill"
+        }
+    }
 
-            if state.favorites.isEmpty {
-                emptyState("No favorites", "Add ports you frequently use")
-            } else {
-                List {
-                    ForEach(Array(state.favorites).sorted(), id: \.self) { port in
-                        HStack {
-                            Text(String(port))
-                                .font(.system(.body, design: .monospaced))
-                            Spacer()
-                            Button { state.favorites.remove(port) } label: {
-                                Image(systemName: "trash").foregroundStyle(.red)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                .listStyle(.inset)
+    private var notificationStatusColor: Color {
+        switch notificationStatus {
+        case .authorized, .provisional, .ephemeral: return .green
+        case .denied: return .red
+        case .notDetermined: return .orange
+        @unknown default: return .secondary
+        }
+    }
+
+    private var notificationStatusText: String {
+        switch notificationStatus {
+        case .authorized: return "Alerts enabled for port watch"
+        case .denied: return "Notifications disabled in System Settings"
+        case .notDetermined: return "Required for port watch alerts"
+        case .provisional: return "Provisional notifications enabled"
+        case .ephemeral: return "Temporary notifications enabled"
+        @unknown default: return "Unknown status"
+        }
+    }
+
+    private func checkPermissions() {
+        // Check accessibility
+        hasAccessibility = AXIsProcessTrusted()
+
+        // Check notification permission (only works in .app bundle)
+        guard Bundle.main.bundleIdentifier != nil,
+              Bundle.main.bundlePath.hasSuffix(".app") else {
+            // Running from debug build, skip notification check
+            notificationStatus = .notDetermined
+            return
+        }
+
+        Task {
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            await MainActor.run {
+                notificationStatus = settings.authorizationStatus
             }
         }
-        .padding()
     }
 
-    // MARK: - Watch Tab
-
-    private var watchTab: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                TextField("Port", text: $newWatchPort)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 70)
-                Toggle("Start", isOn: $watchOnStart)
-                    .toggleStyle(.checkbox)
-                    .font(.caption)
-                Toggle("Stop", isOn: $watchOnStop)
-                    .toggleStyle(.checkbox)
-                    .font(.caption)
-                Button("Add") {
-                    if let p = Int(newWatchPort), p > 0, p <= 65535 {
-                        state.watchedPorts.append(WatchedPort(port: p, notifyOnStart: watchOnStart, notifyOnStop: watchOnStop))
-                        newWatchPort = ""
-                    }
-                }
-                .disabled(!isValidPort(newWatchPort) || (!watchOnStart && !watchOnStop))
-            }
-            Text("Notify when port starts or stops.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if state.watchedPorts.isEmpty {
-                emptyState("No watched ports", "Watch ports to get notifications")
-            } else {
-                List {
-                    ForEach(state.watchedPorts) { w in
-                        HStack {
-                            Text(String(w.port))
-                                .font(.system(.body, design: .monospaced))
-                            Spacer()
-                            Toggle("Start", isOn: Binding(
-                                get: { w.notifyOnStart },
-                                set: { state.updateWatch(w.port, onStart: $0, onStop: w.notifyOnStop) }
-                            ))
-                            .toggleStyle(.checkbox)
-                            .font(.caption)
-                            Toggle("Stop", isOn: Binding(
-                                get: { w.notifyOnStop },
-                                set: { state.updateWatch(w.port, onStart: w.notifyOnStart, onStop: $0) }
-                            ))
-                            .toggleStyle(.checkbox)
-                            .font(.caption)
-                            Button { state.removeWatch(w.id) } label: {
-                                Image(systemName: "trash").foregroundStyle(.red)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                .listStyle(.inset)
+    private func startPermissionTimer() {
+        permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [self] _ in
+            Task { @MainActor in
+                checkPermissions()
             }
         }
-        .padding()
     }
 
-    // MARK: - Updates Tab
+    private func stopPermissionTimer() {
+        permissionCheckTimer?.invalidate()
+        permissionCheckTimer = nil
+    }
 
-    private var updatesTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Version Info
-            HStack {
-                Text("PortKiller")
-                    .font(.headline)
-                Text(AppInfo.versionString)
-                    .foregroundStyle(.secondary)
-            }
+    private func requestNotificationPermission() {
+        guard Bundle.main.bundlePath.hasSuffix(".app") else { return }
 
-            Divider()
-
-            // Check for Updates Button
-            Button {
-                updateManager.checkForUpdates()
-            } label: {
-                Label("Check for Updates", systemImage: "arrow.triangle.2.circlepath")
-            }
-            .disabled(!updateManager.canCheckForUpdates)
-
-            // Last Check Date
-            if let lastCheck = updateManager.lastUpdateCheckDate {
-                Text("Last checked: \(lastCheck.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            // Auto Update Settings
-            Toggle("Automatically check for updates", isOn: Binding(
-                get: { updateManager.automaticallyChecksForUpdates },
-                set: { updateManager.automaticallyChecksForUpdates = $0 }
-            ))
-            .toggleStyle(.switch)
-
-            Toggle("Automatically download updates", isOn: Binding(
-                get: { updateManager.automaticallyDownloadsUpdates },
-                set: { updateManager.automaticallyDownloadsUpdates = $0 }
-            ))
-            .toggleStyle(.switch)
-
-            Spacer()
-
-            // GitHub Link
-            HStack {
-                Spacer()
-                Link(destination: URL(string: AppInfo.githubReleases)!) {
-                    Label("View on GitHub", systemImage: "link")
-                        .font(.caption)
+        Task {
+            do {
+                _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+                await MainActor.run {
+                    checkPermissions()
                 }
+            } catch {
+                // Permission denied or error
             }
         }
-        .padding()
     }
 
-    // MARK: - About Tab
-
-    private var aboutTab: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            // App Icon & Name
-            VStack(spacing: 12) {
-                Image(systemName: "network")
-                    .font(.system(size: 64))
-                    .foregroundStyle(.blue)
-
-                Text("PortKiller")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-
-                Text(AppInfo.versionString)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Text("Find and kill processes on open ports")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-
-            Divider()
-                .padding(.horizontal, 40)
-
-            // Links
-            VStack(spacing: 12) {
-                Link(destination: URL(string: AppInfo.githubRepo)!) {
-                    HStack {
-                        Image(systemName: "star")
-                        Text("Star on GitHub")
-                    }
-                    .frame(width: 200)
-                }
-                .buttonStyle(.bordered)
-
-                Link(destination: URL(string: AppInfo.githubSponsors)!) {
-                    HStack {
-                        Image(systemName: "heart.fill")
-                            .foregroundStyle(.pink)
-                        Text("Sponsor")
-                    }
-                    .frame(width: 200)
-                }
-                .buttonStyle(.bordered)
-
-                Link(destination: URL(string: AppInfo.githubIssues)!) {
-                    HStack {
-                        Image(systemName: "ladybug")
-                        Text("Report Issue")
-                    }
-                    .frame(width: 200)
-                }
-                .buttonStyle(.bordered)
-
-                Link(destination: URL(string: AppInfo.twitterURL)!) {
-                    HStack {
-                        Image(systemName: "at")
-                        Text("Follow on X")
-                    }
-                    .frame(width: 200)
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Spacer()
-
-            // Copyright
-            Text("Made with love by productdevbook")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+    private func openNotificationSettings() {
+        // Open System Settings > Notifications for this app
+        if let bundleId = Bundle.main.bundleIdentifier {
+            let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(bundleId)")!
+            NSWorkspace.shared.open(url)
         }
-        .padding()
-    }
-
-    // MARK: - Helpers
-
-    private func isValidPort(_ text: String) -> Bool {
-        guard let p = Int(text) else { return false }
-        return p > 0 && p <= 65535
-    }
-
-    private func emptyState(_ title: String, _ subtitle: String) -> some View {
-        VStack {
-            Spacer()
-            Text(title).foregroundStyle(.secondary)
-            Text(subtitle).font(.caption).foregroundStyle(.tertiary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
     }
 }
+
+// MARK: - Accessibility Prompt
 
 private func promptAccessibility() {
     let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
     AXIsProcessTrustedWithOptions(options)
+}
+
+// MARK: - Settings Components
+
+struct SettingsGroup<Content: View>: View {
+    let title: String
+    let icon: String
+    let content: Content
+
+    init(_ title: String, icon: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.icon = icon
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                Text(title)
+                    .font(.headline)
+            }
+
+            content
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+}
+
+struct SettingsRowContainer<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+    }
+}
+
+struct SettingsToggleRow: View {
+    let title: String
+    let subtitle: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        SettingsRowContainer {
+            Toggle(isOn: $isOn) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .fontWeight(.medium)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .toggleStyle(.switch)
+        }
+    }
+}
+
+struct SettingsButtonRow: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            SettingsRowContainer {
+                HStack(spacing: 12) {
+                    Image(systemName: icon)
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .fontWeight(.medium)
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "arrow.up.forward")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct SettingsLinkRow: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let url: String
+
+    var body: some View {
+        Link(destination: URL(string: url)!) {
+            SettingsRowContainer {
+                HStack(spacing: 12) {
+                    Image(systemName: icon)
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .fontWeight(.medium)
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "arrow.up.forward")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct SettingsDivider: View {
+    var body: some View {
+        Divider()
+            .padding(.leading, 50)
+    }
 }

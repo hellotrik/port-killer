@@ -124,6 +124,12 @@ struct PortListRow: View {
 
     var body: some View {
         HStack(spacing: 0) {
+            // Status indicator
+            Circle()
+                .fill(port.isActive ? Color.green : Color.gray)
+                .frame(width: 8, height: 8)
+                .padding(.trailing, 8)
+
             // Port
             HStack(spacing: 4) {
                 if appState.isFavorite(port.port) {
@@ -141,6 +147,7 @@ struct PortListRow: View {
                 }
             }
             .frame(width: 70, alignment: .leading)
+            .opacity(port.isActive ? 1 : 0.6)
 
             // Process
             HStack(spacing: 6) {
@@ -149,24 +156,36 @@ struct PortListRow: View {
                     .foregroundStyle(.secondary)
                 Text(port.processName)
                     .lineLimit(1)
+                    .foregroundStyle(port.isActive ? .primary : .secondary)
             }
             .frame(width: 150, alignment: .leading)
 
             // PID
-            Text("\(port.pid)")
+            Text(port.isActive ? "\(port.pid)" : "-")
                 .font(.system(.body, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: 70, alignment: .leading)
 
             // Type
-            Text(port.processType.rawValue)
-                .font(.caption)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(typeColor.opacity(0.15))
-                .foregroundStyle(typeColor)
-                .clipShape(Capsule())
-                .frame(width: 100, alignment: .leading)
+            if port.isActive {
+                Text(port.processType.rawValue)
+                    .font(.caption)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(typeColor.opacity(0.15))
+                    .foregroundStyle(typeColor)
+                    .clipShape(Capsule())
+                    .frame(width: 100, alignment: .leading)
+            } else {
+                Text("Inactive")
+                    .font(.caption)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.gray.opacity(0.15))
+                    .foregroundStyle(.secondary)
+                    .clipShape(Capsule())
+                    .frame(width: 100, alignment: .leading)
+            }
 
             // Address
             Text(port.address)
@@ -202,16 +221,33 @@ struct PortListRow: View {
                 .buttonStyle(.plain)
                 .help("Toggle watch")
 
-                Button {
-                    Task {
-                        await appState.killPort(port)
+                if port.isActive {
+                    Button {
+                        Task {
+                            await appState.killPort(port)
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.red)
                     }
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.red)
+                    .buttonStyle(.plain)
+                    .help("Kill process (Delete)")
+                } else {
+                    Button {
+                        // Remove from favorites/watched
+                        if appState.isFavorite(port.port) {
+                            appState.favorites.remove(port.port)
+                        }
+                        if appState.isWatching(port.port) {
+                            appState.toggleWatch(port.port)
+                        }
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Remove from list")
                 }
-                .buttonStyle(.plain)
-                .help("Kill process (Delete)")
             }
             .frame(width: 100)
         }
@@ -249,23 +285,25 @@ struct PortListRow: View {
                 Label("Copy Port Number", systemImage: "doc.on.doc")
             }
 
-            Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(port.command, forType: .string)
-            } label: {
-                Label("Copy Command", systemImage: "doc.on.doc")
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                Task {
-                    await appState.killPort(port)
+            if port.isActive {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(port.command, forType: .string)
+                } label: {
+                    Label("Copy Command", systemImage: "doc.on.doc")
                 }
-            } label: {
-                Label("Kill Process", systemImage: "xmark.circle")
+
+                Divider()
+
+                Button(role: .destructive) {
+                    Task {
+                        await appState.killPort(port)
+                    }
+                } label: {
+                    Label("Kill Process", systemImage: "xmark.circle")
+                }
+                .keyboardShortcut(.delete, modifiers: [])
             }
-            .keyboardShortcut(.delete, modifiers: [])
         }
     }
 

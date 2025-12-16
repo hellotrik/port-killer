@@ -428,6 +428,8 @@ struct PortRow: View {
 
 @MainActor
 private func bringMainWindowToFront() {
+    // For menu bar apps, we need to set activation policy to regular temporarily
+    NSApp.setActivationPolicy(.regular)
     NSApp.activate(ignoringOtherApps: true)
 
     // Find the main window (not menu bar extra)
