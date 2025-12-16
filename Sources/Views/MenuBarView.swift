@@ -298,7 +298,6 @@ struct ProcessGroupRow: View {
 struct NestedPortRow: View {
 	let port: PortInfo
 	@Bindable var state: AppState
-	@Environment(\.openURL) private var openURL
 	
 	var body: some View {
 		HStack(spacing: 10) {
@@ -395,7 +394,6 @@ struct PortRow: View {
 	@Binding var confirmingKill: UUID?
 	@State private var isKilling = false
 	@State private var isHovered = false
-	@Environment(\.openURL) private var openURL
 	
 	private var isConfirming: Bool { confirmingKill == port.id }
 	
@@ -471,6 +469,7 @@ struct PortRow: View {
 		.padding(.vertical, 8)
 		.background((isHovered || isConfirming) ? Color.primary.opacity(0.05) : Color.clear)
 		.contentShape(Rectangle())
+		
 		.onHover { hovering in
 			isHovered = hovering
 		}
