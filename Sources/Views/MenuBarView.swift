@@ -47,6 +47,16 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Open PortKiller
+            MenuItemButton(title: "Open PortKiller", icon: "macwindow", shortcut: "O") {
+                openWindow(id: "main")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    bringMainWindowToFront()
+                }
+            }
+
+            Divider()
+
             // Header
             HStack(spacing: 8) {
                 Image(systemName: "network")
@@ -123,22 +133,34 @@ struct MenuBarView: View {
                     }
                 }
             }
-            .frame(maxHeight: 400)
+            .frame(height: 400)
 
             Divider()
 
-            // Toolbar
-            HStack(spacing: 16) {
-                Button { Task { await state.refresh() } } label: {
-                    Image(systemName: "arrow.clockwise")
+            // Menu Items
+            VStack(spacing: 0) {
+                MenuItemButton(title: "Refresh", icon: "arrow.clockwise", shortcut: "R") {
+                    Task { await state.refresh() }
                 }
-                .buttonStyle(.plain)
-                .help("Refresh")
-                .keyboardShortcut("r", modifiers: .command)
+
+                MenuItemButton(
+                    title: useTreeView ? "List View" : "Tree View",
+                    icon: useTreeView ? "list.bullet" : "list.bullet.indent",
+                    shortcut: "T"
+                ) {
+                    useTreeView.toggle()
+                    UserDefaults.standard.set(useTreeView, forKey: "useTreeView")
+                }
+
+                Divider()
+                    .padding(.vertical, 4)
 
                 if confirmingKillAll {
-                    HStack(spacing: 4) {
-                        Button("Kill All") {
+                    HStack {
+                        Text("Kill all \(state.ports.count) processes?")
+                            .font(.callout)
+                        Spacer()
+                        Button("Kill") {
                             Task { await state.killAll() }
                             confirmingKillAll = false
                         }
@@ -149,50 +171,31 @@ struct MenuBarView: View {
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                 } else {
-                    Button { confirmingKillAll = true } label: {
-                        Image(systemName: "xmark.circle")
-                            .foregroundStyle(.red)
+                    MenuItemButton(title: "Kill All", icon: "xmark.circle", shortcut: "K", isDestructive: true) {
+                        confirmingKillAll = true
                     }
-                    .buttonStyle(.plain)
                     .disabled(state.ports.isEmpty)
-                    .help("Kill All")
-                    .keyboardShortcut("k", modifiers: .command)
                 }
 
-                Spacer()
+                Divider()
+                    .padding(.vertical, 4)
 
-                Button {
-                    NSApp.activate(ignoringOtherApps: true)
-                    openWindow(id: "settings")
-                } label: {
-                    Image(systemName: "gear")
+                MenuItemButton(title: "Settings...", icon: "gear", shortcut: ",") {
+                    state.selectedSidebarItem = .settings
+                    openWindow(id: "main")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        bringMainWindowToFront()
+                    }
                 }
-                .buttonStyle(.plain)
-                .help("Settings")
-                .keyboardShortcut(",", modifiers: .command)
 
-                Button { NSApplication.shared.terminate(nil) } label: {
-                    Image(systemName: "power")
+                MenuItemButton(title: "Quit PortKiller", icon: "power", shortcut: "Q") {
+                    NSApplication.shared.terminate(nil)
                 }
-                .buttonStyle(.plain)
-                .help("Quit")
-                .keyboardShortcut("q", modifiers: .command)
-				
-				// View toggle button
-				Button {
-					useTreeView.toggle()
-					UserDefaults.standard.set(useTreeView, forKey: "useTreeView")
-				} label: {
-					Image(systemName: useTreeView ? "list.bullet" : "list.bullet.indent")
-				}
-				.buttonStyle(.plain)
-				.help(useTreeView ? "Show list view" : "Show tree view")
-				.keyboardShortcut("t", modifiers: .command)
-				
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.vertical, 4)
         }
         .frame(width: 300)
     }
@@ -502,3 +505,64 @@ struct PortRow: View {
 	}
 }
 
+<<<<<<< feat/openin
+=======
+// MARK: - Helper Functions
+
+@MainActor
+private func bringMainWindowToFront() {
+    NSApp.activate(ignoringOtherApps: true)
+
+    // Find the main window (not menu bar extra)
+    for window in NSApp.windows {
+        // Skip menu bar extra windows
+        if window.level == .popUpMenu || window.level == .statusBar {
+            continue
+        }
+        if window.canBecomeMain {
+            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
+            return
+        }
+    }
+}
+
+// MARK: - Menu Item Button
+
+struct MenuItemButton: View {
+    let title: String
+    let icon: String
+    var shortcut: String? = nil
+    var isDestructive: Bool = false
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .frame(width: 16)
+                    .foregroundStyle(isDestructive ? .red : .primary)
+                Text(title)
+                    .foregroundStyle(isDestructive ? .red : .primary)
+                Spacer()
+                if let shortcut = shortcut {
+                    Text("⌘\(shortcut)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+            .background(isHovered ? Color.accentColor : Color.clear)
+            .foregroundStyle(isHovered ? .white : .primary)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+>>>>>>> main

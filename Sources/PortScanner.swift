@@ -21,14 +21,57 @@ actor PortScanner {
                 return []
             }
 
-            return parseLsofOutput(output)
+            let commands = await getProcessCommands()
+            return parseLsofOutput(output, commands: commands)
         } catch {
             return []
         }
     }
 
+    /// Get full command lines for processes using ps
+    private func getProcessCommands() async -> [Int: String] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-axo", "pid,command"]
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+
+            // IMPORTANT: Read data BEFORE waitUntilExit to avoid deadlock
+            // If pipe buffer fills up, ps will block waiting to write
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+
+            guard let output = String(data: data, encoding: .utf8) else {
+                return [:]
+            }
+
+            var commands: [Int: String] = [:]
+            let lines = output.components(separatedBy: .newlines)
+
+            for line in lines.dropFirst() {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard !trimmed.isEmpty else { continue }
+
+                let parts = trimmed.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+                guard parts.count >= 2,
+                      let pid = Int(parts[0]) else { continue }
+
+                commands[pid] = String(parts[1])
+            }
+
+            return commands
+        } catch {
+            return [:]
+        }
+    }
+
     /// Parse lsof output into PortInfo array
-    private func parseLsofOutput(_ output: String) -> [PortInfo] {
+    private func parseLsofOutput(_ output: String, commands: [Int: String]) -> [PortInfo] {
         var ports: [PortInfo] = []
         let lines = output.components(separatedBy: .newlines)
 
@@ -50,6 +93,12 @@ actor PortScanner {
 
             guard let pid = Int(components[1]) else { continue }
 
+            // User name
+            let user = String(components[2])
+
+            // File descriptor
+            let fd = String(components[3])
+
             // NAME is near the end, before (LISTEN)
             // Find the address:port part (second to last or contains ":")
             var addressPart = ""
@@ -63,7 +112,10 @@ actor PortScanner {
 
             guard !addressPart.isEmpty else { continue }
 
-            guard let portInfo = parseAddress(addressPart, processName: processName, pid: pid) else {
+            // Get full command from ps output
+            let command = commands[pid] ?? processName
+
+            guard let portInfo = parseAddress(addressPart, processName: processName, pid: pid, user: user, command: command, fd: fd) else {
                 continue
             }
 
@@ -77,7 +129,7 @@ actor PortScanner {
     }
 
     /// Parse address string like "127.0.0.1:3000" or "*:8080"
-    private func parseAddress(_ address: String, processName: String, pid: Int) -> PortInfo? {
+    private func parseAddress(_ address: String, processName: String, pid: Int, user: String, command: String, fd: String) -> PortInfo? {
         // Handle formats: "127.0.0.1:3000", "*:8080", "[::1]:3000"
         let parts: [String]
 
@@ -105,7 +157,10 @@ actor PortScanner {
             port: port,
             pid: pid,
             processName: processName,
-            address: addr.isEmpty ? "*" : addr
+            address: addr.isEmpty ? "*" : addr,
+            user: user,
+            command: command,
+            fd: fd
         )
     }
 

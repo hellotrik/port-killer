@@ -4,22 +4,25 @@ import SwiftUI
 struct PortKillerApp: App {
     @State private var state = AppState()
 
-    init() {
-        NSApplication.shared.setActivationPolicy(.accessory)
-    }
-
     var body: some Scene {
+        // Main Window
+        WindowGroup(id: "main") {
+            MainWindowView()
+                .environment(state)
+        }
+        .windowStyle(.automatic)
+        .defaultSize(width: 1000, height: 600)
+        .commands {
+            CommandGroup(replacing: .newItem) {} // Disable Cmd+N
+        }
+
+        // Menu Bar (quick access)
         MenuBarExtra {
             MenuBarView(state: state)
         } label: {
             Image(nsImage: menuBarIcon())
         }
         .menuBarExtraStyle(.window)
-
-        Window("Settings", id: "settings") {
-            SettingsView(state: state, updateManager: state.updateManager)
-        }
-        .windowResizability(.contentSize)
     }
 
     private func menuBarIcon() -> NSImage {
