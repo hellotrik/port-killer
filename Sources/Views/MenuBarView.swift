@@ -505,8 +505,7 @@ struct PortRow: View {
 	}
 }
 
-<<<<<<< feat/openin
-=======
+
 // MARK: - Helper Functions
 
 @MainActor
@@ -565,4 +564,3 @@ struct MenuItemButton: View {
         }
     }
 }
->>>>>>> main
