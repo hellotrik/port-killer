@@ -70,17 +70,9 @@ jobs:
           SPARKLE="$FRAMEWORKS_PATH/Sparkle.framework/Versions/B"
 
           # Sign Sparkle framework components (inside out, bottom-up)
+          # Note: XPC services removed in build-app.sh for non-sandboxed apps
           if [ -d "$FRAMEWORKS_PATH/Sparkle.framework" ]; then
             echo "Signing Sparkle framework components..."
-
-            # XPC Services (Installer first, then Downloader with entitlements preserved)
-            codesign --force --options runtime --timestamp \
-              --sign "$DEVELOPER_ID_NAME" \
-              "$SPARKLE/XPCServices/Installer.xpc"
-            codesign --force --options runtime --timestamp \
-              --preserve-metadata=entitlements \
-              --sign "$DEVELOPER_ID_NAME" \
-              "$SPARKLE/XPCServices/Downloader.xpc"
 
             # Autoupdate binary
             codesign --force --options runtime --timestamp \

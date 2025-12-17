@@ -116,6 +116,11 @@ fi
 echo "📦 Copying Sparkle.framework..."
 ditto "$SPARKLE_CACHE/Sparkle.framework" "$CONTENTS_DIR/Frameworks/Sparkle.framework"
 
+# Remove XPC services (not needed for non-sandboxed apps, saves ~500KB)
+echo "🗑️ Removing unnecessary XPC services..."
+rm -rf "$CONTENTS_DIR/Frameworks/Sparkle.framework/Versions/B/XPCServices"
+rm -f "$CONTENTS_DIR/Frameworks/Sparkle.framework/XPCServices"
+
 # Add rpath so executable can find the framework
 echo "🔗 Setting up framework path..."
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$APP_NAME" 2>/dev/null || true
