@@ -70,49 +70,21 @@ final class UpdateManager {
 
     /**
      * Initializes the update manager.
-     * Sparkle initialization is delayed by 2 seconds to reduce launch memory footprint.
+     * Updates are disabled - Sparkle will not be initialized.
      */
     init() {
-        // Delay Sparkle initialization to reduce launch memory
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            self?.ensureInitialized()
-        }
+        // Updates are disabled - do not initialize Sparkle
     }
 
     // MARK: - Private Methods
 
     /**
      * Ensures Sparkle is initialized before use.
-     * This is called automatically when needed and is safe to call multiple times.
-     * Skips initialization when not running from an .app bundle (development mode).
+     * Updates are disabled - this method does nothing.
      */
     private func ensureInitialized() {
-        guard !isInitialized else { return }
-        isInitialized = true
-
-        guard Self.isRunningFromBundle else {
-            return
-        }
-
-        let controller = SPUStandardUpdaterController(
-            startingUpdater: true,
-            updaterDelegate: nil,
-            userDriverDelegate: nil
-        )
-        updaterController = controller
-
-        // Observe Sparkle properties and update our @Observable properties
-        controller.updater.publisher(for: \.canCheckForUpdates)
-            .sink { [weak self] value in
-                self?.canCheckForUpdates = value
-            }
-            .store(in: &cancellables)
-
-        controller.updater.publisher(for: \.lastUpdateCheckDate)
-            .sink { [weak self] value in
-                self?.lastUpdateCheckDate = value
-            }
-            .store(in: &cancellables)
+        // Updates are disabled - do not initialize Sparkle
+        return
     }
 
     /// Storage for Combine cancellables
@@ -122,14 +94,10 @@ final class UpdateManager {
 
     /**
      * Manually checks for updates.
-     * Activates the app and brings the update window to the front.
-     * This is important for menu bar apps that don't normally have visible windows.
+     * Updates are disabled - this method does nothing.
      */
     func checkForUpdates() {
-        ensureInitialized()
-        guard let controller = updaterController else { return }
-        // Activate app to ensure Sparkle window appears in front
-        NSApp.activate(ignoringOtherApps: true)
-        controller.checkForUpdates(nil)
+        // Updates are disabled
+        return
     }
 }
