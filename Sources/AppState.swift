@@ -9,7 +9,7 @@ import Sparkle
 extension Defaults.Keys {
     static let favorites = Key<Set<Int>>("favorites", default: [])
     static let watchedPorts = Key<[WatchedPort]>("watchedPorts", default: [])
-    static let useTreeView = Key<Bool>("useTreeView", default: false)
+    static let useTreeView = Key<Bool>("useTreeView", default: true)
     static let refreshInterval = Key<Int>("refreshInterval", default: 5)
 
     // Sponsor-related keys

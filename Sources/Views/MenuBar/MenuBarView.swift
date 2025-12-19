@@ -17,7 +17,7 @@ struct MenuBarView: View {
     @State private var confirmingKillPort: UUID?
     @State private var hoveredPort: UUID?
     @State private var expandedProcesses: Set<Int> = []
-    @State private var useTreeView = UserDefaults.standard.bool(forKey: "useTreeView")
+    @Default(.useTreeView) private var useTreeView
     @State private var cachedGroups: [ProcessGroup] = []
 
     private var groupedByProcess: [ProcessGroup] { cachedGroups }
