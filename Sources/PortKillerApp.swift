@@ -46,9 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateNow
         }
 
-        // Kill all port-forward connections and tunnels before terminating
+        // Stop all tunnels before terminating
         Task {
-            await appState.portForwardManager.killStuckProcesses()
             await appState.tunnelManager.stopAllTunnels()
             await MainActor.run {
                 NSApp.reply(toApplicationShouldTerminate: true)
@@ -81,12 +80,6 @@ struct PortKillerApp: App {
                     // Pass state to AppDelegate for termination handling
                     appDelegate.appState = state
 
-                    // Auto-start port-forward connections if enabled
-                    if Defaults[.portForwardAutoStart] {
-                        try? await Task.sleep(for: .seconds(1))
-                        state.portForwardManager.startAll()
-                    }
-
                     try? await Task.sleep(for: .seconds(3))
                     sponsorManager.checkAndShowIfNeeded()
                 }
@@ -111,22 +104,7 @@ struct PortKillerApp: App {
 				.disabled(!state.updateManager.canCheckForUpdates)
             }
 
-            CommandGroup(after: .newItem) {
-                Button("Open Port Forwarder Window") {
-                    NSApp.activate(ignoringOtherApps: true)
-                    openWindow(id: "port-forwarder")
-                }
-                .keyboardShortcut("k", modifiers: [.command, .shift])
-            }
         }
-
-        // Port Forwarder Window
-        Window("Port Forwarder", id: "port-forwarder") {
-            PortForwarderWindowView()
-                .environment(state)
-        }
-        .windowStyle(.automatic)
-        .defaultSize(width: 900, height: 650)
 
         // Menu Bar (quick access)
         MenuBarExtra {

@@ -9,29 +9,6 @@ enum ClipboardService {
         pasteboard.setString(text, forType: .string)
     }
 
-    /// Copy logs as markdown formatted text
-    static func copyLogsAsMarkdown(_ logs: [PortForwardLogEntry], connectionName: String? = nil) {
-        var markdown = ""
-
-        if let name = connectionName {
-            markdown += "# Logs: \(name)\n\n"
-        }
-
-        markdown += "```\n"
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "HH:mm:ss"
-
-        for log in logs {
-            let timestamp = dateFormatter.string(from: log.timestamp)
-            let source = log.type == .portForward ? "kubectl" : "socat"
-            let prefix = log.isError ? "[ERROR]" : ""
-            markdown += "\(timestamp) [\(source)] \(prefix)\(log.message)\n"
-        }
-        markdown += "```\n"
-
-        copy(markdown)
-    }
-
     /// Copy any items as markdown list
     static func copyAsMarkdownList(_ items: [String], title: String? = nil) {
         var markdown = ""

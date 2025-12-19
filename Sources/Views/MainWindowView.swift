@@ -75,11 +75,6 @@ struct MainWindowView: View {
                 .id("sponsors")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationSplitViewColumnWidth(min: 400, ideal: 600, max: .infinity)
-        case .kubernetesPortForward:
-            PortForwarderSidebarContent()
-                .id("port-forwarder")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationSplitViewColumnWidth(min: 400, ideal: 600, max: .infinity)
         case .cloudflareTunnels:
             CloudflareTunnelsView()
                 .id("cloudflare-tunnels")
@@ -99,8 +94,6 @@ struct MainWindowView: View {
     private var detailView: some View {
         if appState.selectedSidebarItem == .settings || appState.selectedSidebarItem == .sponsors || appState.selectedSidebarItem == .cloudflareTunnels {
             EmptyView()
-        } else if appState.selectedSidebarItem == .kubernetesPortForward {
-            ConnectionLogPanel(connection: appState.selectedPortForwardConnection)
         } else if let selectedPort = appState.selectedPort {
             PortDetailView(port: selectedPort)
         } else {

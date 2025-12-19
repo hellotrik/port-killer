@@ -64,27 +64,14 @@ struct MenuBarView: View {
         }
     }
 
-    /// Filters port-forward connections based on search text
-    private var filteredPortForwardConnections: [PortForwardConnectionState] {
-        let connections = state.portForwardManager.connections
-        if searchText.isEmpty { return connections }
-        return connections.filter {
-            String($0.effectivePort).contains(searchText) ||
-            $0.config.name.localizedCaseInsensitiveContains(searchText) ||
-            $0.config.namespace.localizedCaseInsensitiveContains(searchText) ||
-            $0.config.service.localizedCaseInsensitiveContains(searchText)
-        }
-    }
-
     var body: some View {
         VStack(spacing: 0) {
-            MenuBarHeader(searchText: $searchText, portCount: filteredPorts.count + filteredPortForwardConnections.count)
+            MenuBarHeader(searchText: $searchText, portCount: filteredPorts.count)
 
             Divider()
 
             MenuBarPortList(
                 filteredPorts: filteredPorts,
-                filteredPortForwardConnections: filteredPortForwardConnections,
                 groupedByProcess: groupedByProcess,
                 useTreeView: useTreeView,
                 expandedProcesses: $expandedProcesses,

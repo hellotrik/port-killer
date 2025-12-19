@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:port-killer}",
+            "name": "Debug PortKiller",
+            "program": "${workspaceFolder:port-killer}/.build/debug/PortKiller",
+            "preLaunchTask": "swift: Build Debug PortKiller"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:port-killer}",
+            "name": "Release PortKiller",
+            "program": "${workspaceFolder:port-killer}/.build/release/PortKiller",
+            "preLaunchTask": "swift: Build Release PortKiller"
+        }
+    ]
+}

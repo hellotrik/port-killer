@@ -21,7 +21,6 @@ struct SidebarView: View {
             }
 
             Section("Networking") {
-                kubernetesPortForwardRow
                 cloudflareTunnelsRow
             }
 
@@ -133,31 +132,6 @@ struct SidebarView: View {
                 Label("Add Port...", systemImage: "plus")
             }
         }
-    }
-
-    // MARK: - Kubernetes Port Forward Row
-
-    private var kubernetesPortForwardRow: some View {
-        Label {
-            HStack {
-                Text("K8s Port Forward")
-                Spacer()
-
-                // Status indicator
-                Circle()
-                    .fill(appState.portForwardManager.allConnected && !appState.portForwardManager.connections.isEmpty ? Color.green : Color.secondary.opacity(0.3))
-                    .frame(width: 8, height: 8)
-
-                Text("\(appState.portForwardManager.connections.count)")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                    .frame(minWidth: 20)
-            }
-        } icon: {
-            Image(systemName: "point.3.connected.trianglepath.dotted")
-                .foregroundStyle(.blue)
-        }
-        .tag(SidebarItem.kubernetesPortForward)
     }
 
     // MARK: - Cloudflare Tunnels Row

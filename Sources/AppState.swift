@@ -56,15 +56,6 @@ final class AppState {
         return ports.first { $0.id == id }
     }
 
-    /// ID of the currently selected port-forward connection
-    var selectedPortForwardConnectionId: UUID? = nil
-
-    /// The currently selected port-forward connection, if any
-    var selectedPortForwardConnection: PortForwardConnectionState? {
-        guard let id = selectedPortForwardConnectionId else { return nil }
-        return portForwardManager.connections.first { $0.id == id }
-    }
-
     /// Returns filtered ports based on sidebar selection and active filters.
     var filteredPorts: [PortInfo] {
         if case .settings = selectedSidebarItem { return [] }
@@ -72,7 +63,7 @@ final class AppState {
         var result: [PortInfo]
 
         switch selectedSidebarItem {
-        case .allPorts, .settings, .sponsors, .kubernetesPortForward, .cloudflareTunnels:
+        case .allPorts, .settings, .sponsors, .cloudflareTunnels:
             result = ports
         case .favorites:
             var activePorts = Set<Int>()
@@ -136,9 +127,6 @@ final class AppState {
 
     /// Manages Sparkle auto-update functionality
     let updateManager = UpdateManager()
-
-    /// Manages Kubernetes port-forward connections
-    let portForwardManager = PortForwardManager()
 
     /// Manages Cloudflare tunnel connections
     let tunnelManager = TunnelManager()

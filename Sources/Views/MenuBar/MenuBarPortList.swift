@@ -2,7 +2,6 @@
 ///
 /// Manages the display of ports in either list or tree view mode.
 /// Shows an empty state when no ports are found.
-/// Includes Kubernetes port-forward connections at the top.
 ///
 /// - Note: Uses LazyVStack for performance with large port lists.
 /// - Important: Tree view groups ports by process, list view shows flat list.
@@ -11,7 +10,6 @@ import SwiftUI
 
 struct MenuBarPortList: View {
     let filteredPorts: [PortInfo]
-    let filteredPortForwardConnections: [PortForwardConnectionState]
     let groupedByProcess: [ProcessGroup]
     let useTreeView: Bool
     @Binding var expandedProcesses: Set<Int>
@@ -30,20 +28,8 @@ struct MenuBarPortList: View {
                     }
                 }
 
-                // Port Forward connections grouped by namespace
-                if !filteredPortForwardConnections.isEmpty {
-                    sectionHeader("K8s Port Forward", icon: "point.3.connected.trianglepath.dotted", color: .blue)
-
-                    ForEach(connectionsByNamespace, id: \.namespace) { group in
-                        namespaceHeader(group.namespace, count: group.connections.count)
-                        ForEach(group.connections) { connection in
-                            MenuBarPortForwardRow(connection: connection, state: state)
-                        }
-                    }
-                }
-
                 // Normal ports
-                if filteredPorts.isEmpty && filteredPortForwardConnections.isEmpty && state.tunnelManager.tunnels.isEmpty {
+                if filteredPorts.isEmpty && state.tunnelManager.tunnels.isEmpty {
                     emptyState
                 } else if !filteredPorts.isEmpty {
                     sectionHeader("Local Ports", icon: "network", color: .green)
@@ -73,29 +59,6 @@ struct MenuBarPortList: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(Color.primary.opacity(0.03))
-    }
-
-    private var connectionsByNamespace: [(namespace: String, connections: [PortForwardConnectionState])] {
-        let grouped = Dictionary(grouping: filteredPortForwardConnections) { $0.config.namespace }
-        return grouped.map { (namespace: $0.key, connections: $0.value) }
-            .sorted { $0.namespace < $1.namespace }
-    }
-
-    private func namespaceHeader(_ namespace: String, count: Int) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "folder.fill")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-            Text(namespace)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-            Text("(\(count))")
-                .font(.caption2)
-                .foregroundStyle(.quaternary)
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 4)
     }
 
     /// Empty state shown when no ports are found

@@ -61,7 +61,6 @@ enum SidebarItem: Hashable, Identifiable, Sendable {
     case favorites
     case watched
     case processType(ProcessType)
-    case kubernetesPortForward
     case cloudflareTunnels
     case sponsors
     case settings
@@ -72,7 +71,6 @@ enum SidebarItem: Hashable, Identifiable, Sendable {
         case .favorites: return "favorites"
         case .watched: return "watched"
         case .processType(let type): return "type-\(type.rawValue)"
-        case .kubernetesPortForward: return "k8s-port-forward"
         case .cloudflareTunnels: return "cloudflare-tunnels"
         case .sponsors: return "sponsors"
         case .settings: return "settings"
@@ -85,7 +83,6 @@ enum SidebarItem: Hashable, Identifiable, Sendable {
         case .favorites: return "Favorites"
         case .watched: return "Watched"
         case .processType(let type): return type.rawValue
-        case .kubernetesPortForward: return "K8s Port Forward"
         case .cloudflareTunnels: return "Cloudflare Tunnels"
         case .sponsors: return "Sponsors"
         case .settings: return "Settings"
@@ -98,7 +95,6 @@ enum SidebarItem: Hashable, Identifiable, Sendable {
         case .favorites: return "star.fill"
         case .watched: return "eye.fill"
         case .processType(let type): return type.icon
-        case .kubernetesPortForward: return "point.3.connected.trianglepath.dotted"
         case .cloudflareTunnels: return "cloud.fill"
         case .sponsors: return "heart.fill"
         case .settings: return "gear"
