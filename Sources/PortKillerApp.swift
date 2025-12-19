@@ -110,22 +110,51 @@ struct PortKillerApp: App {
 
     private func menuBarIcon() -> NSImage {
         // Try various bundle paths for icon
-        let paths = [
+        let searchPaths: [URL?] = [
+            // First try: PortKiller bundle in Resources
             Bundle.main.resourceURL?.appendingPathComponent("PortKiller_PortKiller.bundle"),
+            // Second try: PortKiller bundle at app root
             Bundle.main.bundleURL.appendingPathComponent("PortKiller_PortKiller.bundle"),
+            // Third try: Direct in Resources directory
             Bundle.main.resourceURL,
+            // Fourth try: App root
             Bundle.main.bundleURL
         ]
-        for p in paths {
-            if let url = p?.appendingPathComponent("ToolbarIcon@2x.png"),
-               FileManager.default.fileExists(atPath: url.path()),
-               let img = NSImage(contentsOf: url) {
-                img.size = NSSize(width: 18, height: 18)
-                img.isTemplate = true  // Enable template mode for monochrome menu bar icon
-                return img
+        
+        // Try @2x version first (Retina)
+        for basePath in searchPaths {
+            if let base = basePath {
+                let iconPath = base.appendingPathComponent("ToolbarIcon@2x.png")
+                if FileManager.default.fileExists(atPath: iconPath.path),
+                   let img = NSImage(contentsOf: iconPath) {
+                    img.size = NSSize(width: 18, height: 18)
+                    img.isTemplate = true
+                    return img
+                }
             }
         }
-        // Fallback to system icon
+        
+        // Fallback: Try non-@2x version
+        for basePath in searchPaths {
+            if let base = basePath {
+                let iconPath = base.appendingPathComponent("ToolbarIcon.png")
+                if FileManager.default.fileExists(atPath: iconPath.path),
+                   let img = NSImage(contentsOf: iconPath) {
+                    img.size = NSSize(width: 18, height: 18)
+                    img.isTemplate = true
+                    return img
+                }
+            }
+        }
+        
+        // Final fallback: Use AppIcon if available
+        if let appIcon = NSImage(named: "AppIcon") {
+            appIcon.size = NSSize(width: 18, height: 18)
+            appIcon.isTemplate = true
+            return appIcon
+        }
+        
+        // Last resort: system icon (should not reach here if icon files exist)
         return NSImage(systemSymbolName: "network", accessibilityDescription: "PortKiller") ?? NSImage()
     }
 }
