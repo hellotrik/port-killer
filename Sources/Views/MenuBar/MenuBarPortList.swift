@@ -75,8 +75,9 @@ struct MenuBarPortList: View {
     }
 
     /// Tree view groups ports by process
+    /// Each process group is uniquely identified by PID
     private var treeView: some View {
-        ForEach(groupedByProcess) { group in
+        ForEach(groupedByProcess, id: \.id) { group in
             MenuBarProcessGroupRow(
                 group: group,
                 isExpanded: expandedProcesses.contains(group.id),

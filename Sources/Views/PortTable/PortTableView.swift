@@ -18,6 +18,7 @@ struct PortTableView: View {
     @State private var sortAscending = true
     @Default(.useTreeView) private var useTreeView
     @State private var expandedProcesses: Set<Int> = []
+    @State private var cachedGroups: [ProcessGroup] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,6 +42,12 @@ struct PortTableView: View {
                 }
             }
         }
+        .onChange(of: appState.filteredPorts) { _, _ in
+            updateCachedGroups()
+        }
+        .onAppear {
+            updateCachedGroups()
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -50,6 +57,65 @@ struct PortTableView: View {
                 }
                 .help(useTreeView ? "Switch to List View" : "Switch to Tree View")
             }
+        }
+    }
+    
+    /// Updates cached process groups from filtered ports
+    /// This ensures stable view identity for SwiftUI
+    private func updateCachedGroups() {
+        // Group by PID to ensure each process is uniquely identified
+        let grouped = Dictionary(grouping: appState.filteredPorts) { $0.pid }
+        
+        // Build a map of process name -> ports -> PIDs to identify related processes
+        var processPortMap: [String: [Int: Set<Int>]] = [:]
+        for port in appState.filteredPorts {
+            let portKey = port.port
+            if processPortMap[port.processName] == nil {
+                processPortMap[port.processName] = [:]
+            }
+            if processPortMap[port.processName]?[portKey] == nil {
+                processPortMap[port.processName]?[portKey] = []
+            }
+            processPortMap[port.processName]?[portKey]?.insert(port.pid)
+        }
+        
+        cachedGroups = grouped.map { pid, ports in
+            // Remove duplicates within each group (same port + address)
+            var uniquePorts: [PortInfo] = []
+            var seenPorts: Set<String> = []
+            for port in ports {
+                let key = "\(port.port)-\(port.address)"
+                if seenPorts.insert(key).inserted {
+                    uniquePorts.append(port)
+                }
+            }
+            
+            let processName = uniquePorts.first?.processName ?? "Unknown"
+            
+            // Find all PIDs that share the same process name and ports
+            var relatedPIDs: Set<Int> = [pid]
+            if let portMap = processPortMap[processName] {
+                // Collect all PIDs that share at least one port with this process
+                for port in uniquePorts {
+                    if let pidsForPort = portMap[port.port] {
+                        relatedPIDs.formUnion(pidsForPort)
+                    }
+                }
+            }
+            
+            return ProcessGroup(
+                id: pid,
+                processName: processName,
+                ports: uniquePorts.sorted { $0.port < $1.port },
+                relatedPIDs: relatedPIDs
+            )
+        }.sorted { a, b in
+            // Stable sort: first by process name, then by PID if names are equal
+            let nameComparison = a.processName.localizedCaseInsensitiveCompare(b.processName)
+            if nameComparison == .orderedSame {
+                return a.id < b.id
+            }
+            return nameComparison == .orderedAscending
         }
     }
 
@@ -159,8 +225,9 @@ struct PortTableView: View {
     // MARK: - View Modes
 
     /// Tree view groups ports by process
+    /// Each process group is uniquely identified by PID
     private var treeView: some View {
-        ForEach(groupedPorts) { group in
+        ForEach(cachedGroups, id: \.id) { group in
             ProcessGroupListRow(
                 group: group,
                 isExpanded: expandedProcesses.contains(group.id),
@@ -199,18 +266,6 @@ struct PortTableView: View {
     }
 
     // MARK: - Data Processing
-
-    /// Groups ports by process for tree view
-    private var groupedPorts: [ProcessGroup] {
-        let grouped = Dictionary(grouping: appState.filteredPorts) { $0.pid }
-        return grouped.map { pid, ports in
-            ProcessGroup(
-                id: pid,
-                processName: ports.first?.processName ?? "Unknown",
-                ports: ports.sorted { $0.port < $1.port }
-            )
-        }.sorted { $0.processName.localizedCaseInsensitiveCompare($1.processName) == .orderedAscending }
-    }
 
     /// Sorts ports based on current sort order
     private var sortedPorts: [PortInfo] {

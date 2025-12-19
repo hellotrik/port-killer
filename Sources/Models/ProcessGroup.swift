@@ -22,4 +22,13 @@ struct ProcessGroup: Identifiable, Sendable {
 
     /// All ports owned by this process
     let ports: [PortInfo]
+    
+    /// All PIDs that share the same process name and ports (for multi-process scenarios like nginx workers)
+    /// This helps identify when multiple processes are listening on the same ports
+    let relatedPIDs: Set<Int>
+    
+    /// Whether this process shares ports with other processes of the same name
+    var hasRelatedProcesses: Bool {
+        relatedPIDs.count > 1
+    }
 }

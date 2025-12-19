@@ -20,6 +20,9 @@ struct MenuBarProcessGroupRow: View {
                 HStack(spacing: 4) {
                     if group.ports.contains(where: { state.isFavorite($0.port) }) { Image(systemName: "star.fill").font(.caption2).foregroundStyle(.yellow) }
                     Text(group.processName).font(.callout).fontWeight(.medium).lineLimit(1)
+                    if group.hasRelatedProcesses {
+                        Text("(\(group.relatedPIDs.count))").font(.caption2).foregroundStyle(.secondary)
+                    }
                     if group.ports.contains(where: { state.isWatching($0.port) }) { Image(systemName: "eye.fill").font(.caption2).foregroundStyle(.blue) }
                 }
                 Spacer()

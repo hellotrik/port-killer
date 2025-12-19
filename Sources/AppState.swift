@@ -63,7 +63,7 @@ final class AppState {
         var result: [PortInfo]
 
         switch selectedSidebarItem {
-        case .allPorts, .settings, .sponsors, .cloudflareTunnels:
+        case .allPorts, .settings, .cloudflareTunnels:
             result = ports
         case .favorites:
             var activePorts = Set<Int>()

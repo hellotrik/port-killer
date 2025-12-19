@@ -184,8 +184,10 @@ actor PortScanner {
                 continue
             }
 
-            // Avoid duplicates (same port + pid) using O(1) Set lookup
-            let key = "\(portInfo.port)-\(portInfo.pid)"
+            // Avoid duplicates (same port + pid + address) using O(1) Set lookup
+            // This prevents duplicate entries when a process listens on the same port
+            // with multiple file descriptors or when IPv4/IPv6 are both present
+            let key = "\(portInfo.port)-\(portInfo.pid)-\(portInfo.address)"
             if seen.insert(key).inserted {
                 ports.append(portInfo)
             }

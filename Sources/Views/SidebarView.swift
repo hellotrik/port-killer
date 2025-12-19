@@ -35,14 +35,6 @@ struct SidebarView: View {
             }
 
             Section {
-                Label {
-                    Text("Sponsors")
-                } icon: {
-                    Image(systemName: "heart.fill")
-                        .foregroundStyle(.pink)
-                }
-                .tag(SidebarItem.sponsors)
-
                 Label("Settings", systemImage: "gear")
                     .tag(SidebarItem.settings)
             }

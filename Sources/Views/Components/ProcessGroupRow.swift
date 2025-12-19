@@ -45,6 +45,14 @@ struct ProcessGroupListRow: View {
                 Text(group.processName)
                     .font(.system(.body, design: .rounded))
                     .fontWeight(.medium)
+                
+                // Show indicator if multiple processes share the same ports
+                if group.hasRelatedProcesses {
+                    Text("(\(group.relatedPIDs.count) processes)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .help("多个进程监听相同端口")
+                }
             }
             .frame(width: 150, alignment: .leading)
 

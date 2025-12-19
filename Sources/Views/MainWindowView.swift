@@ -2,7 +2,6 @@ import SwiftUI
 
 struct MainWindowView: View {
     @Environment(AppState.self) private var appState
-    @Environment(SponsorManager.self) private var sponsorManager
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var showKillAllConfirmation = false
 
@@ -70,11 +69,6 @@ struct MainWindowView: View {
                 .id("settings")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationSplitViewColumnWidth(min: 400, ideal: 600, max: .infinity)
-        case .sponsors:
-            SponsorsPageView(sponsorManager: sponsorManager)
-                .id("sponsors")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationSplitViewColumnWidth(min: 400, ideal: 600, max: .infinity)
         case .cloudflareTunnels:
             CloudflareTunnelsView()
                 .id("cloudflare-tunnels")
@@ -92,7 +86,7 @@ struct MainWindowView: View {
 
     @ViewBuilder
     private var detailView: some View {
-        if appState.selectedSidebarItem == .settings || appState.selectedSidebarItem == .sponsors || appState.selectedSidebarItem == .cloudflareTunnels {
+        if appState.selectedSidebarItem == .settings || appState.selectedSidebarItem == .cloudflareTunnels {
             EmptyView()
         } else if let selectedPort = appState.selectedPort {
             PortDetailView(port: selectedPort)

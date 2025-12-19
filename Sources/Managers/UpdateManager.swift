@@ -84,7 +84,7 @@ final class UpdateManager {
      */
     private func ensureInitialized() {
         // Updates are disabled - do not initialize Sparkle
-        return
+            return
     }
 
     /// Storage for Combine cancellables

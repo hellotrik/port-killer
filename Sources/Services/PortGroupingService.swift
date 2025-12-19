@@ -34,11 +34,49 @@ actor PortGroupingService {
     /// ```
     func groupByProcess(_ ports: [PortInfo]) -> [ProcessGroup] {
         let grouped = Dictionary(grouping: ports) { $0.pid }
+        
+        // Build a map of process name -> ports -> PIDs to identify related processes
+        var processPortMap: [String: [Int: Set<Int>]] = [:]
+        for port in ports {
+            let portKey = port.port
+            if processPortMap[port.processName] == nil {
+                processPortMap[port.processName] = [:]
+            }
+            if processPortMap[port.processName]?[portKey] == nil {
+                processPortMap[port.processName]?[portKey] = []
+            }
+            processPortMap[port.processName]?[portKey]?.insert(port.pid)
+        }
+        
         return grouped.map { pid, ports in
-            ProcessGroup(
+            // Remove duplicates within each group (same port + address)
+            var uniquePorts: [PortInfo] = []
+            var seenPorts: Set<String> = []
+            for port in ports {
+                let key = "\(port.port)-\(port.address)"
+                if seenPorts.insert(key).inserted {
+                    uniquePorts.append(port)
+                }
+            }
+            
+            let processName = uniquePorts.first?.processName ?? "Unknown"
+            
+            // Find all PIDs that share the same process name and ports
+            var relatedPIDs: Set<Int> = [pid]
+            if let portMap = processPortMap[processName] {
+                // Collect all PIDs that share at least one port with this process
+                for port in uniquePorts {
+                    if let pidsForPort = portMap[port.port] {
+                        relatedPIDs.formUnion(pidsForPort)
+                    }
+                }
+            }
+            
+            return ProcessGroup(
                 id: pid,
-                processName: ports.first?.processName ?? "Unknown",
-                ports: ports.sorted { $0.port < $1.port }
+                processName: processName,
+                ports: uniquePorts.sorted { $0.port < $1.port },
+                relatedPIDs: relatedPIDs
             )
         }.sorted { $0.processName.localizedCaseInsensitiveCompare($1.processName) == .orderedAscending }
     }
@@ -55,11 +93,49 @@ actor PortGroupingService {
     /// - Returns: Array of ProcessGroup instances, sorted by priority then name
     func groupByProcessWithPriority(_ ports: [PortInfo], favorites: Set<Int>, watched: Set<Int>) -> [ProcessGroup] {
         let grouped = Dictionary(grouping: ports) { $0.pid }
+        
+        // Build a map of process name -> ports -> PIDs to identify related processes
+        var processPortMap: [String: [Int: Set<Int>]] = [:]
+        for port in ports {
+            let portKey = port.port
+            if processPortMap[port.processName] == nil {
+                processPortMap[port.processName] = [:]
+            }
+            if processPortMap[port.processName]?[portKey] == nil {
+                processPortMap[port.processName]?[portKey] = []
+            }
+            processPortMap[port.processName]?[portKey]?.insert(port.pid)
+        }
+        
         return grouped.map { pid, ports in
-            ProcessGroup(
+            // Remove duplicates within each group (same port + address)
+            var uniquePorts: [PortInfo] = []
+            var seenPorts: Set<String> = []
+            for port in ports {
+                let key = "\(port.port)-\(port.address)"
+                if seenPorts.insert(key).inserted {
+                    uniquePorts.append(port)
+                }
+            }
+            
+            let processName = uniquePorts.first?.processName ?? "Unknown"
+            
+            // Find all PIDs that share the same process name and ports
+            var relatedPIDs: Set<Int> = [pid]
+            if let portMap = processPortMap[processName] {
+                // Collect all PIDs that share at least one port with this process
+                for port in uniquePorts {
+                    if let pidsForPort = portMap[port.port] {
+                        relatedPIDs.formUnion(pidsForPort)
+                    }
+                }
+            }
+            
+            return ProcessGroup(
                 id: pid,
-                processName: ports.first?.processName ?? "Unknown",
-                ports: ports.sorted { $0.port < $1.port }
+                processName: processName,
+                ports: uniquePorts.sorted { $0.port < $1.port },
+                relatedPIDs: relatedPIDs
             )
         }.sorted { a, b in
             // Check if groups have favorite or watched ports

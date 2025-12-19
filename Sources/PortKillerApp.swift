@@ -62,7 +62,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct PortKillerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var state = AppState()
-    @State private var sponsorManager = SponsorManager()
     @Environment(\.openWindow) private var openWindow
 
     init() {
@@ -75,21 +74,9 @@ struct PortKillerApp: App {
         Window("PortKiller", id: "main") {
             MainWindowView()
                 .environment(state)
-                .environment(sponsorManager)
                 .task {
                     // Pass state to AppDelegate for termination handling
                     appDelegate.appState = state
-
-                    try? await Task.sleep(for: .seconds(3))
-                    sponsorManager.checkAndShowIfNeeded()
-                }
-                .onChange(of: sponsorManager.shouldShowWindow) { _, shouldShow in
-                    if shouldShow {
-                        state.selectedSidebarItem = .sponsors
-                        NSApp.activate(ignoringOtherApps: true)
-                        openWindow(id: "main")
-                        sponsorManager.markWindowShown()
-                    }
                 }
         }
         .windowStyle(.automatic)
