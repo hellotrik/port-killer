@@ -19,6 +19,7 @@ struct PortTableView: View {
     @Default(.useTreeView) private var useTreeView
     @State private var expandedProcesses: Set<Int> = []
     @State private var cachedGroups: [ProcessGroup] = []
+    @State private var lastPortPIDs: Set<Int> = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,7 +43,7 @@ struct PortTableView: View {
                 }
             }
         }
-        .onChange(of: appState.filteredPorts) { _, _ in
+        .onChange(of: Set(appState.filteredPorts.map { $0.pid })) { _, _ in
             updateCachedGroups()
         }
         .onAppear {
@@ -63,6 +64,15 @@ struct PortTableView: View {
     /// Updates cached process groups from filtered ports
     /// This ensures stable view identity for SwiftUI
     private func updateCachedGroups() {
+        let currentPIDs = Set(appState.filteredPorts.map { $0.pid })
+        
+        // Only update if PIDs have actually changed
+        if currentPIDs == lastPortPIDs && !cachedGroups.isEmpty {
+            return
+        }
+        
+        lastPortPIDs = currentPIDs
+        
         // Group by PID to ensure each process is uniquely identified
         let grouped = Dictionary(grouping: appState.filteredPorts) { $0.pid }
         
@@ -228,20 +238,21 @@ struct PortTableView: View {
     /// Each process group is uniquely identified by PID
     private var treeView: some View {
         ForEach(cachedGroups, id: \.id) { group in
+            let groupID = group.id
             ProcessGroupListRow(
                 group: group,
-                isExpanded: expandedProcesses.contains(group.id),
+                isExpanded: expandedProcesses.contains(groupID),
                 onToggleExpand: {
-                    if expandedProcesses.contains(group.id) {
-                        expandedProcesses.remove(group.id)
+                    if expandedProcesses.contains(groupID) {
+                        expandedProcesses.remove(groupID)
                     } else {
-                        expandedProcesses.insert(group.id)
+                        expandedProcesses.insert(groupID)
                     }
                 }
             )
 
-            if expandedProcesses.contains(group.id) {
-                ForEach(group.ports) { port in
+            if expandedProcesses.contains(groupID) {
+                ForEach(group.ports, id: \.id) { port in
                     NestedPortListRow(port: port)
                         .background(appState.selectedPortID == port.id ? Color.accentColor.opacity(0.2) : Color.clear)
                         .contentShape(Rectangle())
